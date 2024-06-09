@@ -1,33 +1,27 @@
 import Link from '../models/link.js';
 const redirectController = {
     getRedirectLink: async (req, res) => {
-        const linkId = req.params.linkId;
         try {
+            const { linkId } = req.params;
             const link = await Link.findById(linkId);
-
             if (!link) {
-                return res.status(404).json({ message: 'Link not found' });
-            }
-            link.targetValues.find()
-            const paramValue = req.query[link.targetParamName] || "";
-            // Update click information in the database
-            if (paramValue === "") {
-                link.clicks.push({ ipAddress: req.body.ip });
+                res.status(404).json({ message: 'Link not found' });
             }
             else {
-                if (link.targetValues.find(value => value.value === paramValue)) {
-                    link.clicks.push({ ipAddress: req.ip, targetParamValue: paramValue });
-                }
-                else {
-                    console.error(error);
-                    res.status(404).json({ message: 'The value param is not exist' });
-                }
+                const value = req.query[link.targetParamName];
+                if (value && value !== "")
+                    if (link.targetValues.find(x => x.value === value))
+                        link.clicks.push({ ipAddress: req.connection.remoteAddress, targetParamValue: value });
+                    else {
+                        res.status(404).json({ message: 'Target is invalid' });
+                        return;
+                    }
+                else
+                    link.clicks.push({ ipAddress: req.connection.remoteAddress });
+                await link.save();
+                res.redirect(301, link.originalUrl);
             }
-            await link.save();
-
-            // Redirect to the original URL
-            res.redirect(301,link.originalUrl);
-        } catch (error) {
+        } catch (err) {
             console.error(error);
             res.status(500).json({ message: 'Internal server error' });
         }
